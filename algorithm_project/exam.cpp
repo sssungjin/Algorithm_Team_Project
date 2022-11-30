@@ -2,6 +2,8 @@
 #include <iostream>
 
 #define max_snum 3
+#define max_subject 24
+#define max_time 30
 
 using namespace std;
 
@@ -101,23 +103,56 @@ public:
 		this->stud = student;
 	}
 
-	void allocateExam(string *subject) {
+	void allocateExam(string **subject) {
 		// 정렬된 시간표를 바탕으로 과목 정렬
 	}
 
-	void sortSchedule(string *subject) {
-		int i, j, value;
-		for (i = 0; subject[i] != ""; i++) {
-
+	void daySort(Subject* src, Subject* dest, int n, int k) {
+		int *N = new int[k] {0};
+		int i;
+		for (i = 1; i <= n; i++)
+			N[src[i].time_table->day] = N[src[i].time_table->day] + 1;
+		for (i = 2; i <= k; i++)
+			N[i] = N[i] + N[i - 1];
+		for (i = n; i <= 1; i--) {
+			dest[N[src[i].time_table->day]] = src[i];
+			N[src[i].time_table->day] = N[src[i].time_table->day] - 1;
 		}
+		delete N;
+	}
+
+	void timeSort(Subject* src, Subject* dest, int n, int k) {
+		int *N = new int[k] {0};
+		int i;
+		for (i = 1; i <= n; i++)
+			N[src[i].time_table->start_time] = N[src[i].time_table->start_time] + 1;
+		for (i = 2; i <= k; i++)
+			N[i] = N[i] + N[i - 1];
+		for (i = n; i <= 1; i--) {
+			dest[N[src[i].time_table->start_time]] = src[i];
+			N[src[i].time_table->start_time] = N[src[i].time_table->start_time] - 1;
+		}
+		delete N;
+	}
+
+	Subject* radixSort(Subject *subject) {
+		int size = sizeof(subject) / sizeof(Subject);
+		Subject *ordered = new Subject[size];
+		
+		timeSort(subject, ordered, size, max_time);
+		daySort(subject, ordered, size, max_subject);
 		// 학생별로 과목 정렬 -> 과목 정렬 순서는 1번째 요일별, 2번째 같은 요일이라면 빠른시간대
 	}
 
-	void what(Subject** subjectList ) {
+	void what(string **subjectList ) {
 		// 학생별로 정렬 sortSchedule 호출
 		// 학생별로 allocateExam을 통해 최적의 시간표 생성
 		// 학생들의 시간표 종합
 		// 종합된 시간표 중 가중치가 높은것부터 배정, 같은 가중치라면 빠른 요일, 빠른 시간대부터 배정
+	}
+
+	void printExamDay() {
+
 	}
 };
 
