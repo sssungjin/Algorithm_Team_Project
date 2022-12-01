@@ -1,5 +1,7 @@
 #include <string>
 #include <iostream>
+#include <fstream>
+#include <sstream>
 
 using namespace std;
 
@@ -42,7 +44,7 @@ public:
 	//해시값을 반환할 함수
 	int hash_value(string subject_name)
 	{
-		int hash_value = 0, a = 33;
+		int hash_value = 0, a = 3;
 
 		for (int i = 0; i < subject_name.length(); i++)
 		{
@@ -98,30 +100,101 @@ public:
 	}
 };
 
+int student_cnt; // 데이터로 받아온 학생 수
+int *student_subjectNum; // 학생별 수강과목 수를 저장할 포인터
+Subject **student_sub; // 학생들의 학수번호를 토대로 Subject 구조체로 변환
+
+void setData() {
+	ifstream fp("totalData.txt");
+	if (!fp.is_open()) { cout << "not open" << endl; return; }
+	string fpstr; // 파일로부터 읽어올 한 문장을 저장할 변수
+	string subject_code, time[3]; // 학수번호, 부분별로 나눠진 시간표(한 과목당 최대 3번으로 나눠져 수업 진행됨)
+	int cnt_idx, cnt_len;           // student_cnt를 가져오기 위해 필요한 변수
+
+	// 학생수만큼 동적할당하는 과정
+	getline(fp, fpstr);
+	cnt_idx = 12; // student_cnt:(숫자)의 숫자값만 가져오기 위함
+	cnt_len = fpstr.length();
+	fpstr = fpstr.substr(cnt_idx, cnt_len - cnt_idx);
+	student_cnt = stoi(fpstr);
+	student = new string*[student_cnt]; // 학생수만큼의 포인터 배열 할당
+	student_sub = new Subject*[student_cnt]; // 학생수만큼의 포인터 배열 크기 할당
+	student_subjectNum = new int[student_cnt]; // 학생수만큼 포인터 배열 크기 할당
+
+	// student 이차원 배열 데이터 설정 과정
+	for (int pCnt = 0; pCnt < student_cnt; pCnt++) {
+		getline(fp, fpstr); // 과목 수가 적혀있는 라인        
+		int subject_cnt = stoi(fpstr);
+
+		student[pCnt] = new string[subject_cnt];
+		student_sub[pCnt] = new Subject[subject_cnt];
+		student_subjectNum[pCnt] = subject_cnt;
+
+		for (int sCnt = 0; sCnt < subject_cnt; sCnt++) {
+			int scheduleNum = 0;
+			getline(fp, fpstr);
+			stringstream split(fpstr);
+			split >> subject_code >> time[0] >> time[1] >> time[2];
+			student[pCnt][sCnt] = subject_code;
+
+			// 학생별 Subject 구조체 멤버 초기화 진행
+			student_sub[pCnt][sCnt].subject_name = subject_code;
+			student_sub[pCnt][sCnt].student_num = 1;
+			int partCnt = 0;          // 한과목이 분할된 갯수
+			for (int i = 0; i < 3; i++)
+				if (!time[i].empty()) partCnt++;
+			student_sub[pCnt][sCnt].schedule_num = partCnt;
+			student_sub[pCnt][sCnt].time_table = new schedule[partCnt];
+
+			// 학생별 schedule 초기화 진행
+			for (int tidx = 0; tidx < partCnt; tidx++) {
+				int split = time[tidx].find('-');
+				string date = time[tidx].substr(0, 3);
+				string startT_str = time[tidx].substr(3, 3);
+				float startT = stof(startT_str); startT = (startT - 1) * 2;
+				string endT_str = time[tidx].substr(split + 1, 3);
+				float endT = stof(endT_str); endT = (endT - 1) * 2;
+
+				if (date == "mon") student_sub[pCnt][sCnt].time_table[tidx].day = mon;
+				else if (date == "tue") student_sub[pCnt][sCnt].time_table[tidx].day = tue;
+				else if (date == "wed") student_sub[pCnt][sCnt].time_table[tidx].day = wed;
+				else if (date == "thu") student_sub[pCnt][sCnt].time_table[tidx].day = thu;
+				else if (date == "fri") student_sub[pCnt][sCnt].time_table[tidx].day = fri;
+				student_sub[pCnt][sCnt].time_table[tidx].start_time = (int)startT;
+				student_sub[pCnt][sCnt].time_table[tidx].end_time = (int)endT;
+			}
+		}
+	}
+}
+
+
 class Q1 {
 	Subject **subject; // [0][0]이면 월요일 0(1교시), [3][5]이면 목요일 5(3.5교시)
 	int size; // 수강강의의 개수를 저장할 변수
 
 public:
-	Q1(int size) {
-		this->size = size;
+	Q1() {
 		this->subject = new Subject*[5]; // 5개의 요일 배열 생성(월, 화, 수, 목, 금)
 		for (int i = 0; i < 5; i++) {
 			this->subject[i] = new Subject[max_time]; // 각각의 요일에 1~15.5교시까지의 배열 생성(시간이 겹치는 강의는 연결 리스트로 연결)
 		}
 	}
 
+	void setSize(int size) {
+		this->size = size;
+	}
+
 	Subject* timeSort(Subject* src, int n, int k) { // 빠른 시작시간 기준 계수정렬, src는 정렬할 배열, dest는 정렬이 완료된 배열, n은 src 원소의 개수, k는 교시의 범위
 		Subject *dest = new Subject[size];
-		int *N = new int[k+1] {0};
+		int *N = new int[k + 1]{ 0 };
 		int i;
 		for (i = 1; i <= n; i++)
-			N[src[i-1].time_table[0].start_time] = N[src[i-1].time_table[0].start_time] + 1;
+			N[src[i - 1].time_table[0].start_time] = N[src[i - 1].time_table[0].start_time] + 1;
 		for (i = 2; i <= k; i++)
 			N[i] = N[i] + N[i - 1];
 		for (i = n; i >= 1; i--) {
-			dest[N[src[i-1].time_table[0].start_time] - 1] = src[i-1];
-			N[src[i-1].time_table[0].start_time] = N[src[i-1].time_table[0].start_time] - 1;
+			dest[N[src[i - 1].time_table[0].start_time] - 1] = src[i - 1];
+			N[src[i - 1].time_table[0].start_time] = N[src[i - 1].time_table[0].start_time] - 1;
 		}
 		return dest;
 	}
@@ -132,10 +205,10 @@ public:
 		int i;
 		for (i = 1; i <= n; i++)
 			N[src[i - 1].time_table[0].day] = N[src[i - 1].time_table[0].day] + 1;
-		for (i = 1; i <= k-1; i++)
+		for (i = 1; i <= k - 1; i++)
 			N[i] = N[i] + N[i - 1];
 		for (i = n; i >= 1; i--) {
-			dest[N[src[i - 1].time_table[0].day] -1] = src[i - 1];
+			dest[N[src[i - 1].time_table[0].day] - 1] = src[i - 1];
 			N[src[i - 1].time_table[0].day] = N[src[i - 1].time_table[0].day] - 1;
 		}
 		return dest;
@@ -143,14 +216,14 @@ public:
 
 	Subject* scheduleNumSort(Subject* src, int n, int k) { // 작은 강의 시간 분할 수 기준 계수정렬, src는 정렬할 배열, dest는 정렬이 완료된 배열, n은 src 원소의 개수, k는 분할 가능한 수의 범위
 		Subject *dest = new Subject[size];
-		int *N = new int[k+1] {0};
+		int *N = new int[k + 1]{ 0 };
 		int i;
 		for (i = 1; i <= n; i++)
 			N[src[i - 1].schedule_num] = N[src[i - 1].schedule_num] + 1;
 		for (i = 2; i <= k; i++)
 			N[i] = N[i] + N[i - 1];
 		for (i = n; i >= 1; i--) {
-			dest[N[src[i - 1].schedule_num] - 1] = src[i-1];
+			dest[N[src[i - 1].schedule_num] - 1] = src[i - 1];
 			N[src[i - 1].schedule_num] = N[src[i - 1].schedule_num] - 1;
 		}
 		return dest;
@@ -165,28 +238,36 @@ public:
 		return subject;
 	}
 
-	int minExamDay(Schedule *sc, Subject **sb, int scheduleNum) { // 강의 요일 중 가장 시험이 덜 배정되어있는(가중치가 가장 작은) 요일에 해당하는 Schedule 배열의 인덱스를 반환하는 함수
+	int minExamDay(Schedule *sc, Subject **sb, Subject* userSubject) { // 강의 요일 중 가장 시험이 덜 배정되어있는(가중치가 가장 작은) 요일에 해당하는 Schedule 배열의 인덱스를 반환하는 함수
 		int i, j, min = 0, minSum = 0, sum = 0; // min은 시험이 가장 덜 배정되어있는 요일(1번째 요일을 기본적인 최소로 설정), minSum은 min요일에 해당하는 가중치
+		int scheduleNum = userSubject->schedule_num;
+		int userStartTime, userEndTime;
 		Subject *ptr; // 요일에 배정된 시험을 가리킬 포인터
+		userStartTime = userSubject->time_table[0].start_time, userEndTime = userSubject->time_table[0].end_time;
 		for (i = 0; i < max_time; i++) { // 1교시부터 15.5교시까지 모든 시험들의 가중치를 검토
 			if (sb[sc[0].day][i].subject_name != "") { // 해당 교시에 시험이 배정되어있다면
-				ptr = &sb[sc[0].day][i];
-				minSum += ptr->student_num;
-				while(ptr->next != NULL) {
+				ptr = &sb[sc[0].day][i]; // 연결리스트 전체 확인
+				while (ptr != NULL) {
+					if ((ptr->subject_name.substr(0, 7) != userSubject->subject_name.substr(0, 7)) &&
+						!((ptr->time_table->start_time <= userStartTime && ptr->time_table->end_time > userStartTime) || (
+							ptr->time_table->start_time < userEndTime && ptr->time_table->end_time >= userEndTime))) // 만약에 같은 교과목의 분반이 아니거나 시간대가 겹치는 강의가 아니라면
+						minSum += ptr->student_num;
 					ptr = ptr->next; // 시간이 중복되는 시험이 존재하는지 아래 조건문을 통해 확인
-					minSum += ptr->student_num; // 가중치 추가
 				}
 			}
 		}
 
 		for (i = 1; i < scheduleNum; i++) { // 나머지 요일들을 검토하여 minSum보다 작은 요일이 발견될경우 해당 요일을 min으로 할당
+			userStartTime = userSubject->time_table[i].start_time, userEndTime = userSubject->time_table[i].end_time;
 			for (j = 0; j < max_time; j++) {
 				if (sb[sc[i].day][j].subject_name != "") {
 					ptr = &sb[sc[i].day][j];
-					sum += ptr->student_num;
-					while(ptr->next != NULL) {
+					while (ptr != NULL) {
+						if (ptr->subject_name.substr(0, 7) != userSubject->subject_name.substr(0, 7) &&
+							!((ptr->time_table->start_time <= userStartTime && ptr->time_table->end_time > userStartTime) || (
+								ptr->time_table->start_time < userEndTime && ptr->time_table->end_time >= userEndTime))) // 만약에 같은 교과목의 분반이 아니거나 시간대가 겹치는 강의가 아니라면
+							sum += ptr->student_num;
 						ptr = ptr->next;
-						sum += ptr->student_num;
 					}
 				}
 			}
@@ -206,15 +287,24 @@ public:
 
 		for (int i = 0; i < size; i++) {  // 학생의 모든 수강강의들에 대해 진행
 			sc = userSubject[i].time_table;
-			int examDay = minExamDay(sc, this->subject, userSubject[i].schedule_num);
-			if (this->subject[userSubject[i].time_table[examDay].day][userSubject[i].time_table[examDay].start_time].subject_name == "")
-				this->subject[userSubject[i].time_table[examDay].day][userSubject[i].time_table[examDay].start_time] = userSubject[i];
-			else {
-				ptr = &(this->subject[userSubject[i].time_table[examDay].day][userSubject[i].time_table[examDay].start_time]);
+			int examDay = minExamDay(sc, this->subject, &userSubject[i]); // 가중치가 최소인 요일 확인
+			ptr = &(this->subject[userSubject[i].time_table[examDay].day][userSubject[i].time_table[examDay].start_time]);
+			if (ptr->subject_name == "") { // 해당 시간대에 시험이 존재하지 않는다면
+				*ptr = userSubject[i]; // 시험 배정
+				ptr->time_table = &userSubject[i].time_table[examDay];
+			}
+			else if (ptr->subject_name == userSubject[i].subject_name) { // 같은 과목의 시험이 이미 같은 시간대에 존재한다면 가중치 상승
+				++ptr->student_num;
+			}
+			else { // 다른 시험이 존재한다면 연결리스트로 연결
 				while (ptr->next != NULL) {
 					ptr = ptr->next;
+					if (ptr->subject_name == userSubject[i].subject_name) { // 같은 과목의 시험이 이미 같은 시간대에 존재한다면 가중치 상승
+						++ptr->student_num;
+					}
 				}
 				ptr->next = &userSubject[i];
+				ptr->next->time_table = &userSubject[i].time_table[examDay];
 			}
 		}
 	}
@@ -222,14 +312,14 @@ public:
 	void printExamSchedule() {
 		Subject* ptr;
 		for (int i = 0; i < 5; i++) {
-			cout << i  << " : ";
+			cout << i << " : ";
 			for (int j = 0; j < max_time; j++) {
 				if (subject[i][j].subject_name != "") {
 					ptr = &subject[i][j];
-					cout << ptr->subject_name << " " << ptr->time_table[0].start_time << " ";
+					cout << ptr->subject_name << " " << ptr->student_num << " ";
 					while (ptr->next != NULL) {
 						ptr = ptr->next;
-						cout << ptr->subject_name << " " << ptr->time_table[0].start_time << " ";
+						cout << ptr->subject_name << " " << ptr->student_num << " ";
 					}
 				}
 			}
@@ -237,78 +327,20 @@ public:
 		}
 	}
 
-	void what(string **subjectList) {
-		Subject* subject = new Subject[size];
-		subject[0].subject_name = "EGC7026-06";
-		subject[0].time_table = new Schedule;
-		subject[0].time_table->day = fri;
-		subject[0].time_table->start_time = 18;
-		subject[0].time_table->end_time = 23;
-		subject[0].schedule_num = 1;
-		subject[0].student_num = 1;
-		subject[0].next = NULL;
-		subject[1].subject_name = "EGC9018-01";
-		subject[1].time_table = new Schedule;
-		subject[1].time_table->day = wed;
-		subject[1].time_table->start_time = 9;
-		subject[1].time_table->end_time = 14;
-		subject[1].schedule_num = 1;
-		subject[1].student_num = 1;
-		subject[1].next = NULL;
-		subject[2].subject_name = "CSE2015-03";
-		subject[2].time_table = new Schedule[2];
-		subject[2].time_table[0].day = mon;
-		subject[2].time_table[0].start_time = 16;
-		subject[2].time_table[0].end_time = 19;
-		subject[2].time_table[1].day = fri;
-		subject[2].time_table[1].start_time = 15;
-		subject[2].time_table[1].end_time = 17;
-		subject[2].schedule_num = 2;
-		subject[2].student_num = 1;
-		subject[2].next = NULL;
-		subject[3].subject_name = "CSE2024-02";
-		subject[3].time_table = new Schedule[2];
-		subject[3].time_table[0].day = tue;
-		subject[3].time_table[0].start_time = 16;
-		subject[3].time_table[0].end_time = 18;
-		subject[3].time_table[1].day = thu;
-		subject[3].time_table[1].start_time = 16;
-		subject[3].time_table[1].end_time = 18;
-		subject[3].schedule_num = 2;
-		subject[3].student_num = 1;
-		subject[3].next = NULL;
-		subject[4].subject_name = "CSE4029-01";
-		subject[4].time_table = new Schedule[2];
-		subject[4].time_table[0].day = tue;
-		subject[4].time_table[0].start_time = 12;
-		subject[4].time_table[0].end_time = 15;
-		subject[4].time_table[1].day = thu;
-		subject[4].time_table[1].start_time = 12;
-		subject[4].time_table[1].end_time = 15;
-		subject[4].schedule_num = 2;
-		subject[4].student_num = 1;
-		subject[4].next = NULL;
-		subject[5].subject_name = "CSE2013-01";
-		subject[5].time_table = new Schedule[2];
-		subject[5].time_table[0].day = mon;
-		subject[5].time_table[0].start_time = 8;
-		subject[5].time_table[0].end_time = 11;
-		subject[5].time_table[1].day = wed;
-		subject[5].time_table[1].start_time = 2;
-		subject[5].time_table[1].end_time = 5;
-		subject[5].schedule_num = 2;
-		subject[5].student_num = 1;
-		subject[5].next = NULL;
-
-		subject = radixSort(subject);
-		allocateExam(subject, size);
+	void examAllocate(Subject** subjectList, int student_num) {
+		Subject *subject;
+		for (int i = 0; i < student_num; i++) {
+			subject = subjectList[i];
+			setSize(student_subjectNum[i]);
+			subject = radixSort(subject);
+			allocateExam(subject, size);
+		}
 		printExamSchedule();
-	} 
+	}
 };
 
-// n은 학생들의 각자 듣는 과목들의 종류(ex : 1번 학생이 CSE2022-01, EGC2022-02 2번 CSE2022-01, EGC2021-01을 듣는다면 종류는 CSE2022-01, EGC2022-02, EGC2021-01로 총 3개)
-
 int main() {
-	Q1 q1(6);
-	q1.what(NULL);
+	setData();
+	Q1 q1;
+	q1.examAllocate(student_sub ,student_cnt);
 }
