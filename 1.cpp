@@ -6,9 +6,11 @@
 
 using namespace std;
 
-#define max_snum 3     //받을 학생 수 임시로 3
-#define max_subject 24 //최대 듣는 과목 수
-#define max_time 30    //시간표 수 (하루에 30 교시)
+#define max_snum 3 // 입력으로 쓸 학생 수
+#define max_subject 24 // 수강 가능한 강의의 수
+#define max_time 30 // 강의 교시 수(n = (1 + 0.5*n)교시) (n >= 0인 30보다 작은 정수)
+#define max_day 5
+#define max_scheduleNum 3 // 가능한 강의 시간 분할 수(일반물리학및실험1의 경우 강의가 3개의 시간으로 분할됨)
 
 enum Day { mon, tue, wed, thu, fri }; // 요일에 따른 수를 열거한 열거형
 typedef struct schedule {
@@ -97,12 +99,6 @@ public:
     }
 };
 
-//학수번호는 항상 10글자 0~2 영어, 3~6 정수 7 '-', 8~9 정수
-//모두 같으면 같은 수업, 앞 7글자 같고 뒤 2개 정수 다르면 같은 과목명 다른 분반
-
-
-
-
 // --- 재형 코드 ----
 
 
@@ -110,11 +106,10 @@ int student_cnt; // 데이터로 받아온 학생 수
 int* student_subjectNum;    //학생당 과목 수 배열
 Subject** student_sub;
 string** student;
-Subject** sorted;
 string sb_union;   //중복 없는 학수번호 하나의 문자열로 저장
 int total_sub = 0;  //전체 과목 수
 subject_table st(10009);
-
+Subject* sorted;
 void setData() {
     ifstream fp("totalData.txt");
     if (!fp.is_open()) { cout << "not open" << endl; return; }
@@ -178,12 +173,23 @@ void setData() {
     }
 }
 
+void swap(Subject* s1, Subject* s2) {
+    Subject tmp;
+    tmp = *s1;
+    *s1 = *s2;
+    *s2 = tmp;
+}
 
 
 class Q2
 {
 private:
+    int size;
+
 public:
+    Q2(int size) {
+        this->size = size;
+    }
     void initData() {   //해시테이블에 과목 구조체 삽입
         sb_union = "";
         for (int i = 0; i < student_cnt; i++) {
@@ -192,7 +198,6 @@ public:
                 st.get_value(student_sub[i][j].subject_name)->student_num++;
             }
             else {  //해시테이블에 없으면 가중치 1로 설정, 해시테이블에 insert
-                student_sub[i][j].student_num++;
                 sb_union += student_sub[i][j].subject_name + " ";   //합연산으로 학수번호 중복 없이 저장
                 total_sub++;
                 st.insert(&student_sub[i][j]);
@@ -212,9 +217,10 @@ public:
         }
         return sub_unionArr;
     }
-    void printTable() {
+
+    void printTable() {     //해시테이블에 저장된 정보 출력 student_cnt 는 학생 수
         for (int i = 0; i < student_cnt; i++) {
-            for (int j = 0; j < student_subjectNum[i]; j++) {
+            for (int j = 0; j < student_subjectNum[i]; j++) {   //student_subjectNum은 학생이 듣는 강의 수
                 Subject* ptr = st.get_value(student[i][j]);
                 cout << "학수번호 : " << ptr->subject_name;
                 for (int k = 0; k < ptr->schedule_num; k++) {
@@ -226,8 +232,170 @@ public:
             }
         }
     }
-    void sortByWeight() {
-        
+    //해시테이블에 있는 정보를 복사한 배열 반환
+    Subject* copyTable() {
+        string* subArr = splitUnion();
+        Subject* result = new Subject[total_sub];
+        for (int i = 0; i < total_sub; i++) {
+            Subject* ptr = st.get_value(subArr[i]);
+            result[i].subject_name = ptr->subject_name;
+            result[i].student_num = ptr->student_num;
+            result[i].time_table = ptr->time_table;
+            result[i].schedule_num = ptr->schedule_num;
+            result[i].next = ptr->next;
+        }
+        return result;
+    }
+
+    void weightMerge(Subject* a, int l, int mid, int r) { //a는 복사한 배열, sorted에 가중치기준 내림차순 정렬 배열 저장
+        int i, j, k, n;
+        i = l; j = mid + 1; k = l;
+        sorted = new Subject[r + 1]; 
+        while (i <= mid && j <= r) {
+            if (a[i].student_num > a[j].student_num) {  //내림차순 정렬
+                sorted[k++] = a[i++];
+            }
+            else {
+                sorted[k++] = a[j++];
+            }
+        }
+        if (i > mid)
+            for (n = j; n <= r; n++) {
+                sorted[k++] = a[n];
+            }
+        else
+            for (n = i; n <= mid; n++) {
+                sorted[k++] = a[n];
+            }
+        for (n = l; n <= r; n++) {
+            a[n] = sorted[n];
+        }
+    }
+    void weightMergesort(Subject* a, int l, int r) {
+        int mid;
+        if (l < r) {
+            mid = (l + r) / 2;
+            weightMergesort(a, l, mid);
+            weightMergesort(a, mid + 1, r);
+            weightMerge(a, l, mid, r);
+        }
+    }
+
+    void timeMerge(Subject* a, int l, int mid, int r) { //a는 복사한 배열, sorted에 수업시작날짜기준 내림차순 정렬 배열 저장
+        int i, j, k, n;
+        i = l; j = mid + 1; k = l;
+        sorted = new Subject[r + 1];
+        while (i <= mid && j <= r) {
+            if (a[i].time_table[0].start_time <= a[j].time_table[0].start_time) {  //오름차순정렬
+                sorted[k++] = a[i++];
+            }
+            else {
+                sorted[k++] = a[j++];
+            }
+        }
+        if (i > mid)
+            for (n = j; n <= r; n++) {
+                sorted[k++] = a[n];
+            }
+        else
+            for (n = i; n <= mid; n++) {
+                sorted[k++] = a[n];
+            }
+        for (n = l; n <= r; n++) {
+            a[n] = sorted[n];
+        }
+    }
+    void timeMergesort(Subject* a, int l, int r) {
+        int mid;
+        if (l < r) {
+            mid = (l + r) / 2;
+            timeMergesort(a, l, mid);
+            timeMergesort(a, mid + 1, r);
+            timeMerge(a, l, mid, r);
+        }
+    }
+
+    void dayMerge(Subject* a, int l, int mid, int r) { //a는 복사한 배열, sorted에 요일기준 내림차순 정렬 배열 저장
+        int i, j, k, n;
+        i = l; j = mid + 1; k = l;
+        sorted = new Subject[r + 1];
+        while (i <= mid && j <= r) {
+            if (a[i].time_table[0].day <= a[j].time_table[0].day) {  //오름차순정렬
+                sorted[k++] = a[i++];
+            }
+            else {
+                sorted[k++] = a[j++];
+            }
+        }
+        if (i > mid)
+            for (n = j; n <= r; n++) {
+                sorted[k++] = a[n];
+            }
+        else
+            for (n = i; n <= mid; n++) {
+                sorted[k++] = a[n];
+            }
+        for (n = l; n <= r; n++) {
+            a[n] = sorted[n];
+        }
+    }
+    void dayMergesort(Subject* a, int l, int r) {
+        int mid;
+        if (l < r) {
+            mid = (l + r) / 2;
+            dayMergesort(a, l, mid);
+            dayMergesort(a, mid + 1, r);
+            dayMerge(a, l, mid, r);
+        }
+    }
+
+    void scheduleMerge(Subject* a, int l, int mid, int r) { //a는 복사한 배열, sorted에 요일기준 내림차순 정렬 배열 저장
+        int i, j, k, n;
+        i = l; j = mid + 1; k = l;
+        sorted = new Subject[r + 1];
+        while (i <= mid && j <= r) {
+            if (a[i].schedule_num <= a[j].schedule_num) {  //오름차순정렬
+                sorted[k++] = a[i++];
+            }
+            else {
+                sorted[k++] = a[j++];
+            }
+        }
+        if (i > mid)
+            for (n = j; n <= r; n++) {
+                sorted[k++] = a[n];
+            }
+        else
+            for (n = i; n <= mid; n++) {
+                sorted[k++] = a[n];
+            }
+        for (n = l; n <= r; n++) {
+            a[n] = sorted[n];
+        }
+    }
+    void scheduleMergesort(Subject* a, int l, int r) {
+        int mid;
+        if (l < r) {
+            mid = (l + r) / 2;
+            scheduleMergesort(a, l, mid);
+            scheduleMergesort(a, mid + 1, r);
+            scheduleMerge(a, l, mid, r);
+        }
+    }
+    void reverseArr() {   //weightsort는 내림차순 정렬이므로 다른 요소들 안정성 반대로 따라서 가중치 같은 것들 다시 역순으로 바꿔서 안정성 있게함
+        for (int i = 0; i < total_sub; i++) {
+            int num = 0;
+            int j = i;
+            while (sorted[i].student_num == sorted[i + 1].student_num) {    //같은 가중치인 개수 구함
+                i++;
+                num++;
+            }
+            int a = 0;
+            for (int k = j; k < j+(num+1)/2; k++) { //같은 가중치 맨앞 맨뒤부터 스왑
+                swap(sorted[k], sorted[j + num - a]);
+                a++;
+            }
+        }
     }
 };
  
@@ -236,11 +404,79 @@ public:
 int main()
 {    
     setData();  
-    Q2 q;
+    Q2 q(total_sub);
     q.initData();   //해시테이블 삽입
-    q.printTable();  //해시테이블 출력
+    //q.printTable();  //해시테이블 출력
+
     string* arr = q.splitUnion();
+    Subject *result = q.copyTable();
+
+    cout << "정렬 전" << endl;
     for (int i = 0; i < total_sub; i++) {
-        cout << i <<  " 스플릿 : " << arr[i] << endl;
+        cout << "학수번호 : " << result[i].subject_name;
+            for (int k = 0; k < result[i].schedule_num; k++) {
+                cout << " 날짜 : " << result[i].time_table[k].day;
+                cout << " 시작시간 : " << result[i].time_table[k].start_time;
+                cout << " 종료시간 : " << result[i].time_table[k].end_time;
+            }
+            cout << " 가중치 : " << result[i].student_num << endl;
     }
+    cout << "---------timesort-----------" << endl;
+    q.timeMergesort(result, 0, total_sub - 1);
+    for (int i = 0; i < total_sub; i++) {
+        cout << "학수번호 : " << sorted[i].subject_name;
+        for (int k = 0; k < sorted[i].schedule_num; k++) {
+            cout << " 날짜 : " << sorted[i].time_table[k].day;
+            cout << " 시작시간 : " << sorted[i].time_table[k].start_time;
+            cout << " 종료시간 : " << sorted[i].time_table[k].end_time;
+        }
+        cout << " 가중치 : " << sorted[i].student_num << endl;
+    }
+    cout << "----------daysort-----------\n";
+    q.dayMergesort(result, 0, total_sub - 1);
+    for (int i = 0; i < total_sub; i++) {
+        cout << "학수번호 : " << sorted[i].subject_name;
+        for (int k = 0; k < sorted[i].schedule_num; k++) {
+            cout << " 날짜 : " << sorted[i].time_table[k].day;
+            cout << " 시작시간 : " << sorted[i].time_table[k].start_time;
+            cout << " 종료시간 : " << sorted[i].time_table[k].end_time;
+        }
+        cout << " 가중치 : " << sorted[i].student_num << endl;
+    }
+    cout << "----------weightsort-----------\n";
+    q.weightMergesort(result, 0, total_sub - 1);
+    for (int i = 0; i < total_sub; i++) {
+        cout << "학수번호 : " << sorted[i].subject_name;
+        for (int k = 0; k < sorted[i].schedule_num; k++) {
+            cout << " 날짜 : " << sorted[i].time_table[k].day;
+            cout << " 시작시간 : " << sorted[i].time_table[k].start_time;
+            cout << " 종료시간 : " << sorted[i].time_table[k].end_time;
+        }
+        cout << " 가중치 : " << sorted[i].student_num << endl;
+    }
+
+    cout << "----------역순 정렬-----------\n";
+    q.reverseArr();
+    for (int i = 0; i < total_sub; i++) {
+        cout << "학수번호 : " << sorted[i].subject_name;
+        for (int k = 0; k < sorted[i].schedule_num; k++) {
+            cout << " 날짜 : " << sorted[i].time_table[k].day;
+            cout << " 시작시간 : " << sorted[i].time_table[k].start_time;
+            cout << " 종료시간 : " << sorted[i].time_table[k].end_time;
+        }
+        cout << " 가중치 : " << result[i].student_num << endl;
+    }
+
+    cout << "----------schedulesort-----------\n";
+    q.scheduleMergesort(result, 0, total_sub - 1);
+    for (int i = 0; i < total_sub; i++) {
+        cout << "학수번호 : " << sorted[i].subject_name;
+        for (int k = 0; k < sorted[i].schedule_num; k++) {
+            cout << " 날짜 : " << sorted[i].time_table[k].day;
+            cout << " 시작시간 : " << sorted[i].time_table[k].start_time;
+            cout << " 종료시간 : " << sorted[i].time_table[k].end_time;
+        }
+        cout << " 가중치 : " << sorted[i].student_num << endl;
+    }
+
 }
