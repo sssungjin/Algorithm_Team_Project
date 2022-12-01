@@ -301,6 +301,21 @@ public:
 		cout << endl;
 	}
 
+	void deleteExamResult(Subject* sub, int size) {
+		int min;
+		for (int i = 0; i < size; i++) {
+			min = 0;
+			for (int j = 1; j < sub[i].schedule_num; j++) {
+				if (resultSubject[sub[i].time_table[j].day][sub[i].time_table[j].start_time].student_num > resultSubject[sub[i].time_table[min].day][sub[i].time_table[min].start_time].student_num)
+					min = j;
+			}
+			for (int j = 0; j < sub[i].schedule_num; j++) {
+				if (j != min)
+					resultSubject[sub[i].time_table[j].day][sub[i].time_table[j].start_time] = { "", NULL, 0, 0, NULL };
+			}
+		}
+	}
+
 	void examAllocate(Subject** subjectList, int student_num) {
 		Subject *subject;
 		for (int i = 0; i < student_num; i++) {
@@ -318,6 +333,12 @@ public:
 			for (int i = 0; i < 5; i++) {
 				this->subject[i] = new Subject[max_time]; // 각각의 요일에 1~15.5교시까지의 배열 생성(시간이 겹치는 강의는 연결 리스트로 연결)
 			}
+		}
+		for (int i = 0; i < student_num; i++) {
+			setSize(student_subjectNum[i]);
+			deleteExamResult(subjectList[i], size);
+			cout << "삭제 후\n";
+			printExamResultSchedule();
 		}
 	}
 };
