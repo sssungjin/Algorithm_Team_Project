@@ -29,77 +29,6 @@ typedef struct subject {
 
 string **student; // 학생의 수강강의 학수번호를 담는 이중포인터(ex : 1번 학생은 CSE2022-01, EGC2022-02... 을 듣고 있다면 student[1][0] = "CSE2022-01" student[1][1] = "EGC2022-02")
 
-class subject_table // 강의의 학수번호를 key, Subject를 value로 가지는 해시 테이블
-{
-	Subject **table;
-	int size;
-
-public:
-	subject_table(int n)
-	{
-		size = n;
-		table = new Subject* [size]{NULL};
-	}
-
-	//해시값을 반환할 함수
-	int hash_value(string subject_name)
-	{
-		int hash_value = 0, a = 3;
-
-		for (int i = 0; i < subject_name.length(); i++)
-		{
-			hash_value += hash_value * a + subject_name[i];
-		}
-
-		return hash_value % size;
-	}
-
-	// table에 operation에 해당하는 code를 삽입할 함수
-	void insert(Subject *subject)
-	{
-		int hv = hash_value(subject->subject_name);
-
-		if (table[hv] == NULL)
-		{
-			table[hv] = subject;
-		}
-		else
-		{
-			subject->next = table[hv];
-			table[hv] = subject;
-		}
-	}
-
-	// table에서 operation에 해당하는 code를 가져오는 함수
-	Subject* get_value(string subject_name)
-	{
-		Subject *ptr;
-		int hv = hash_value(subject_name);
-
-		ptr = table[hv];
-
-		if (ptr != NULL)
-		{
-			if (ptr->subject_name == subject_name)
-			{
-				return ptr;
-			}
-			else
-			{
-				ptr = ptr->next;
-				while (ptr != NULL)
-				{
-					if (ptr->subject_name == subject_name)
-						return ptr;
-					ptr = ptr->next;
-				}
-			}
-		}
-
-		return NULL;
-	}
-};
-
 int student_cnt; // 데이터로 받아온 학생 수
 int *student_subjectNum; // 학생별 수강과목 수를 저장할 포인터
 Subject **student_sub; // 학생들의 학수번호를 토대로 Subject 구조체로 변환
@@ -145,6 +74,7 @@ void setData() {
 				if (!time[i].empty()) partCnt++;
 			student_sub[pCnt][sCnt].schedule_num = partCnt;
 			student_sub[pCnt][sCnt].time_table = new schedule[partCnt];
+			student_sub[pCnt][sCnt].next = NULL;
 
 			// 학생별 schedule 초기화 진행
 			for (int tidx = 0; tidx < partCnt; tidx++) {
@@ -170,13 +100,16 @@ void setData() {
 
 class Q1 {
 	Subject **subject; // [0][0]이면 월요일 0(1교시), [3][5]이면 목요일 5(3.5교시)
+	Subject **resultSubject;
 	int size; // 수강강의의 개수를 저장할 변수
 
 public:
 	Q1() {
 		this->subject = new Subject*[5]; // 5개의 요일 배열 생성(월, 화, 수, 목, 금)
+		this->resultSubject = new Subject*[5];
 		for (int i = 0; i < 5; i++) {
 			this->subject[i] = new Subject[max_time]; // 각각의 요일에 1~15.5교시까지의 배열 생성(시간이 겹치는 강의는 연결 리스트로 연결)
+			this->resultSubject[i] = new Subject[max_time];
 		}
 	}
 
@@ -186,15 +119,15 @@ public:
 
 	Subject* timeSort(Subject* src, int n, int k) { // 빠른 시작시간 기준 계수정렬, src는 정렬할 배열, dest는 정렬이 완료된 배열, n은 src 원소의 개수, k는 교시의 범위
 		Subject *dest = new Subject[size];
-		int *N = new int[k + 1]{ 0 };
+		int *N = new int[k]{ 0 };
 		int i;
-		for (i = 1; i <= n; i++)
-			N[src[i - 1].time_table[0].start_time] = N[src[i - 1].time_table[0].start_time] + 1;
-		for (i = 2; i <= k; i++)
+		for (i = 0; i < n; i++)
+			N[src[i].time_table[0].start_time] = N[src[i ].time_table[0].start_time] + 1;
+		for (i = 1; i < k; i++)
 			N[i] = N[i] + N[i - 1];
-		for (i = n; i >= 1; i--) {
-			dest[N[src[i - 1].time_table[0].start_time] - 1] = src[i - 1];
-			N[src[i - 1].time_table[0].start_time] = N[src[i - 1].time_table[0].start_time] - 1;
+		for (i = n-1; i >= 0; i--) {
+			dest[N[src[i].time_table[0].start_time] - 1] = src[i];
+			N[src[i].time_table[0].start_time] = N[src[i].time_table[0].start_time] - 1;
 		}
 		return dest;
 	}
@@ -281,7 +214,7 @@ public:
 		return min; // 시험 최소 배정 요일에 해당하는 Schedule 배열의 인덱스 반환
 	}
 
-	void allocateExam(Subject* userSubject, int size) { // minExamDay를 토대로 시험을 배정하는 함수
+	void allocateExam(Subject* userSubject, int size) { // minExamDay를 토대로 한 사람의 시험을 배정하는 함수
 		Schedule *sc;
 		Subject *ptr;
 
@@ -291,21 +224,42 @@ public:
 			ptr = &(this->subject[userSubject[i].time_table[examDay].day][userSubject[i].time_table[examDay].start_time]);
 			if (ptr->subject_name == "") { // 해당 시간대에 시험이 존재하지 않는다면
 				*ptr = userSubject[i]; // 시험 배정
-				ptr->time_table = &userSubject[i].time_table[examDay];
-			}
-			else if (ptr->subject_name == userSubject[i].subject_name) { // 같은 과목의 시험이 이미 같은 시간대에 존재한다면 가중치 상승
-				++ptr->student_num;
+				ptr->time_table = & userSubject[i].time_table[examDay];
 			}
 			else { // 다른 시험이 존재한다면 연결리스트로 연결
 				while (ptr->next != NULL) {
 					ptr = ptr->next;
-					if (ptr->subject_name == userSubject[i].subject_name) { // 같은 과목의 시험이 이미 같은 시간대에 존재한다면 가중치 상승
-						++ptr->student_num;
-					}
 				}
 				ptr->next = &userSubject[i];
 				ptr->next->time_table = &userSubject[i].time_table[examDay];
+				ptr = ptr->next;
 			}
+			userSubject[i].time_table = ptr->time_table;
+		}
+	}
+
+	void allocateExamResult(Subject* userSubject, int size) { // minExamDay를 토대로 한 사람의 시험을 배정하는 함수
+		Subject *ptr;
+		for (int i = 0; i < size; i++) {
+			ptr = &(this->resultSubject[userSubject[i].time_table->day][userSubject[i].time_table->start_time]);
+			if (ptr->subject_name != "") { // 이미 배정되어 있는 시간표가 있다면
+				while (ptr->next != NULL) {
+					if (ptr->subject_name == userSubject[i].subject_name) { // 지금 강의의 이름과 같다면 가중치 증가
+						ptr->student_num++;
+						break;
+					}
+					ptr = ptr->next;
+				}
+				if (ptr->subject_name == userSubject[i].subject_name) { // 지금 강의의 이름과 같다면 가중치 증가
+					ptr->student_num++;
+				}
+				else {
+					ptr->next = new Subject;
+					*ptr->next = userSubject[i];
+				}
+			}
+			else
+				*ptr = userSubject[i];
 		}
 	}
 
@@ -316,6 +270,25 @@ public:
 			for (int j = 0; j < max_time; j++) {
 				if (subject[i][j].subject_name != "") {
 					ptr = &subject[i][j];
+					cout << ptr->subject_name << " ";
+					while (ptr->next != NULL) {
+						ptr = ptr->next;
+						cout << ptr->subject_name << " ";
+					}
+				}
+			}
+			cout << endl;
+		}
+		cout << endl;
+	}
+
+	void printExamResultSchedule() {
+		Subject* ptr;
+		for (int i = 0; i < 5; i++) {
+			cout << i << " : ";
+			for (int j = 0; j < max_time; j++) {
+				if (resultSubject[i][j].subject_name != "") {
+					ptr = &resultSubject[i][j];
 					cout << ptr->subject_name << " " << ptr->student_num << " ";
 					while (ptr->next != NULL) {
 						ptr = ptr->next;
@@ -325,6 +298,7 @@ public:
 			}
 			cout << endl;
 		}
+		cout << endl;
 	}
 
 	void examAllocate(Subject** subjectList, int student_num) {
@@ -334,8 +308,17 @@ public:
 			setSize(student_subjectNum[i]);
 			subject = radixSort(subject);
 			allocateExam(subject, size);
+			cout << "전체 결과 할당 전\n";
+			printExamSchedule();
+			allocateExamResult(subject, size);
+			cout << "전체 결과 할당 후\n";
+			printExamResultSchedule();
+			delete this->subject;
+			this->subject = new Subject*[5]; // 5개의 요일 배열 생성(월, 화, 수, 목, 금)
+			for (int i = 0; i < 5; i++) {
+				this->subject[i] = new Subject[max_time]; // 각각의 요일에 1~15.5교시까지의 배열 생성(시간이 겹치는 강의는 연결 리스트로 연결)
+			}
 		}
-		printExamSchedule();
 	}
 };
 
