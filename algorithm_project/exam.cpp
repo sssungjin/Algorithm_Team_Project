@@ -97,7 +97,6 @@ void setData() {
 	}
 }
 
-
 class Q1 {
 	Subject **subject; // [0][0]이면 월요일 0(1교시), [3][5]이면 목요일 5(3.5교시)
 	Subject **resultSubject;
@@ -121,8 +120,8 @@ public:
 		Subject *dest = new Subject[size];
 		int *N = new int[k]{ 0 };
 		int i;
-		for (i = 0; i < n; i++)
-			N[src[i].time_table[0].start_time] = N[src[i ].time_table[0].start_time] + 1;
+		for (i = 1; i <= n; i++)
+			N[src[i-1].time_table[0].start_time] = N[src[i-1].time_table[0].start_time] + 1;
 		for (i = 1; i < k; i++)
 			N[i] = N[i] + N[i - 1];
 		for (i = n-1; i >= 0; i--) {
@@ -302,12 +301,17 @@ public:
 	}
 
 	void deleteExamResult(Subject* sub, int size) {
-		int min;
+		int min, different;
 		for (int i = 0; i < size; i++) {
-			min = 0;
+			min = 0, different = 0;
 			for (int j = 1; j < sub[i].schedule_num; j++) {
+				if (resultSubject[sub[i].time_table[j].day][sub[i].time_table[j].start_time].student_num != resultSubject[sub[i].time_table[min].day][sub[i].time_table[min].start_time].student_num)
+					different = 1;
 				if (resultSubject[sub[i].time_table[j].day][sub[i].time_table[j].start_time].student_num > resultSubject[sub[i].time_table[min].day][sub[i].time_table[min].start_time].student_num)
 					min = j;
+			}
+			if (different == 0) {
+				min = minExamDay(sub[i].time_table, this->resultSubject, &sub[i]);
 			}
 			for (int j = 0; j < sub[i].schedule_num; j++) {
 				if (j != min)
