@@ -3,7 +3,7 @@
 #include <sstream>
 #include <fstream>
 #include <vector>
-
+#include <cstring>
 using namespace std;
 
 #define max_snum 3 // 입력으로 쓸 학생 수
@@ -26,7 +26,6 @@ typedef struct subject {
     int schedule_num; // 강의시간 분할 수
     struct subject* next;
 } Subject; // 강의의 정보를 담는 구조체
-
 
 class subject_table // 강의의 학수번호를 key, Subject를 value로 가지는 해시 테이블
 {
@@ -61,6 +60,7 @@ public:
 
         if (table[hv] == NULL)
         {
+            subject->next = NULL;
             table[hv] = subject;
         }
         else
@@ -140,6 +140,8 @@ void setData() {
             int scheduleNum = 0;
             getline(fp, fpstr);
             stringstream split(fpstr);
+            for (int i = 0; i < 3; i++)
+                time[i].clear();
             split >> subject_code >> time[0] >> time[1] >> time[2];
             student[pCnt][sCnt] = subject_code;
 
@@ -184,11 +186,23 @@ void swap(Subject* s1, Subject* s2) {
 class Q2
 {
 private:
-    int size;
-
+    int size;   //전체 과목 개수
+    Subject** resultSubject;
+    Subject** subject; //[0][0]이면 월요일 0(1교시) [3][5]면 목요일 5(3.5교시)
 public:
-    Q2(int size) {
+    Q2() {  //size는 total_sub
+        resultSubject = new Subject * [5];
+        subject = new Subject*[5];
+        for (int i = 0; i < 5; i++) {
+            subject[i] = new Subject[max_time];
+            resultSubject[i] = new Subject[max_time];
+        }
+    }
+    void setSize(int size) {
         this->size = size;
+    }
+    int getSize() {
+        return this->size;
     }
     void initData() {   //해시테이블에 과목 구조체 삽입
         sb_union = "";
@@ -397,6 +411,104 @@ public:
             }
         }
     }
+
+    int minExamDay(Schedule* sc, Subject** sb, Subject* sub) {
+        int i, j, min = 0, minSum = 0, sum = 0; // min은 시험이 가장 덜 배정되어있는 요일(1번째 요일을 기본적인 최소로 설정), minSum은 min요일에 해당하는 가중치
+        int scheduleNum = sub->schedule_num;
+        int userStartTime, userEndTime;
+        Subject* ptr; // 요일에 배정된 시험을 가리킬 포인터
+        userStartTime = sub->time_table[0].start_time, userEndTime = sub->time_table[0].end_time;
+        for (i = 0; i < max_time; i++) { // 1교시부터 15.5교시까지 모든 시험들의 가중치를 검토
+            if (sb[sc[0].day][i].subject_name != "") { // 해당 교시에 시험이 배정되어있다면
+                ptr = &sb[sc[0].day][i]; // 연결리스트 전체 확인
+                while (ptr != NULL) {
+                   /* if ((ptr->subject_name.substr(0, 7) != sub->subject_name.substr(0, 7)) &&
+                        !((ptr->time_table->start_time <= userStartTime && ptr->time_table->end_time > userStartTime) || (
+                            ptr->time_table->start_time < userEndTime && ptr->time_table->end_time >= userEndTime)))*/ // 만약에 같은 교과목의 분반이 아니거나 시간대가 겹치는 강의가 아니라면
+                    if ((ptr->subject_name.substr(0, 7) != sub->subject_name.substr(0, 7)) )
+                        minSum += ptr->student_num;
+                    ptr = ptr->next; // 시간이 중복되는 시험이 존재하는지 아래 조건문을 통해 확인
+                }
+            }
+        }
+
+        for (i = 1; i < scheduleNum; i++) { // 나머지 요일들을 검토하여 minSum보다 작은 요일이 발견될경우 해당 요일을 min으로 할당
+            userStartTime = sub->time_table[i].start_time, userEndTime = sub->time_table[i].end_time;
+            for (j = 0; j < max_time; j++) {
+                if (sb[sc[i].day][j].subject_name != "") {
+                    ptr = &sb[sc[i].day][j];
+                    while (ptr != NULL) {
+                       /* if (ptr->subject_name.substr(0, 7) != sub->subject_name.substr(0, 7) &&
+                            !((ptr->time_table->start_time <= userStartTime && ptr->time_table->end_time > userStartTime) || (
+                                ptr->time_table->start_time < userEndTime && ptr->time_table->end_time >= userEndTime)))*/ // 만약에 같은 교과목의 분반이 아니거나 시간대가 겹치는 강의가 아니라면
+                        if (ptr->subject_name.substr(0, 7) != sub->subject_name.substr(0, 7))
+                            sum += ptr->student_num;
+                        ptr = ptr->next;
+                    }
+                }
+            }
+            if (minSum > sum) {
+                minSum = sum;
+                min = i;
+            }
+            sum = 0;
+        }
+
+        return min;
+    }
+    void allocateExam(Subject *sub) { 
+        Schedule* sc;
+        Subject* ptr;
+
+        for (int i = 0; i < total_sub; i++) {  // 학생의 모든 수강강의들에 대해 진행
+            sc = sub[i].time_table;
+            int examDay = minExamDay(sc, this->subject, &sub[i]); // 가중치가 최소인 요일 확인
+            ptr = &(this->subject[sub[i].time_table[examDay].day][sub[i].time_table[examDay].start_time]);
+            if (ptr->subject_name == "") { // 해당 시간대에 시험이 존재하지 않는다면
+                *ptr = sub[i]; // 시험 배정
+                ptr->time_table = &sub[i].time_table[examDay];
+            }
+            else { // 다른 시험이 존재한다면 연결리스트로 연결
+                while (ptr->next != NULL) {
+                    ptr = ptr->next;
+                }
+                ptr->next = &sub[i];
+                ptr->next->time_table = &sub[i].time_table[examDay];
+                ptr = ptr->next;
+            }
+            sub[i].time_table = ptr->time_table;
+        }
+    }
+
+    void printExamResultSchedule() {
+        Subject* ptr;
+        int num = 0;    //요일별 사람 수 저장할 변수
+        for (int i = 0; i < 5; i++) {
+            cout << i << " : ";
+            for (int j = 0; j < max_time; j++) {
+                if (subject[i][j].subject_name != "") {
+                    ptr = &subject[i][j];
+                    cout << ptr->subject_name << " " << ptr->student_num << " ";
+                    num += ptr->student_num;
+                    while (ptr->next != NULL) {
+                        ptr = ptr->next;
+                        cout << ptr->subject_name << " " << ptr->student_num << " ";
+                        num += ptr->student_num;
+
+                    }
+                }
+            }
+            cout << "요일 사람 수 : " << num << endl;
+            num = 0;
+            cout << endl;
+        }
+
+        cout << endl;
+    }
+
+    Subject** getSubject() {
+        return this->subject;
+    }
 };
  
 // n은 학생들의 각자 듣는 과목들의 종류(ex : 1번 학생이 CSE2022-01, EGC2022-02 2번 CSE2022-01, EGC2021-01을 듣는다면 종류는 CSE2022-01, EGC2022-02, EGC2021-01로 총 3개)
@@ -404,7 +516,7 @@ public:
 int main()
 {    
     setData();  
-    Q2 q(total_sub);
+    Q2 q;
     q.initData();   //해시테이블 삽입
     //q.printTable();  //해시테이블 출력
 
@@ -480,4 +592,16 @@ int main()
         }
         cout << " 가중치 : " << result[i].student_num << endl;
     }
+
+    cout << endl;
+    //q.timeMergesort(result, 0, total_sub - 1);
+    //q.dayMergesort(result, 0, total_sub - 1);
+    //q.weightMergesort(result, 0, total_sub - 1);
+    //q.scheduleMergesort(result, 0, total_sub - 1);
+    //q.reverseArr();
+
+    q.allocateExam(sorted);
+    q.printExamResultSchedule();
+
+
 }
