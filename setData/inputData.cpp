@@ -53,6 +53,7 @@ void setData(){
         for(int sCnt=0;sCnt<subject_cnt;sCnt++){
             getline(fp,fpstr);
             stringstream split(fpstr);
+            time[0]=time[1]=time[2]="";
             split >> subject_code >> time[0] >> time[1] >> time[2];
             student[pCnt][sCnt]=subject_code;
 
