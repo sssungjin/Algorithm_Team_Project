@@ -455,17 +455,7 @@ int main()
         cout << " 가중치 : " << sorted[i].student_num << endl;
     }
 
-    cout << "----------역순 정렬-----------\n";
-    q.reverseArr();
-    for (int i = 0; i < total_sub; i++) {
-        cout << "학수번호 : " << sorted[i].subject_name;
-        for (int k = 0; k < sorted[i].schedule_num; k++) {
-            cout << " 날짜 : " << sorted[i].time_table[k].day;
-            cout << " 시작시간 : " << sorted[i].time_table[k].start_time;
-            cout << " 종료시간 : " << sorted[i].time_table[k].end_time;
-        }
-        cout << " 가중치 : " << result[i].student_num << endl;
-    }
+   
 
     cout << "----------schedulesort-----------\n";
     q.scheduleMergesort(result, 0, total_sub - 1);
@@ -479,4 +469,15 @@ int main()
         cout << " 가중치 : " << sorted[i].student_num << endl;
     }
 
+    cout << "----------역순 정렬-----------\n";
+    q.reverseArr();
+    for (int i = 0; i < total_sub; i++) {
+        cout << "학수번호 : " << sorted[i].subject_name;
+        for (int k = 0; k < sorted[i].schedule_num; k++) {
+            cout << " 날짜 : " << sorted[i].time_table[k].day;
+            cout << " 시작시간 : " << sorted[i].time_table[k].start_time;
+            cout << " 종료시간 : " << sorted[i].time_table[k].end_time;
+        }
+        cout << " 가중치 : " << result[i].student_num << endl;
+    }
 }
