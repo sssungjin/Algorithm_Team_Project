@@ -60,6 +60,7 @@ void setData() {
 		student_subjectNum[pCnt] = subject_cnt;
 
 		for (int sCnt = 0; sCnt < subject_cnt; sCnt++) {
+			time[0] = time[1] = time[2] = "";
 			int scheduleNum = 0;
 			getline(fp, fpstr);
 			stringstream split(fpstr);
@@ -291,7 +292,7 @@ public:
 					cout << ptr->subject_name << " " << ptr->student_num << " ";
 					while (ptr->next != NULL) {
 						ptr = ptr->next;
-						cout << ptr->subject_name << " " << ptr->student_num << " ";
+						cout << "->" << ptr->subject_name << " " << ptr->student_num << " ";
 					}
 				}
 			}
@@ -301,21 +302,54 @@ public:
 	}
 
 	void deleteExamResult(Subject* sub, int size) {
-		int min, different;
+		int max, different, j, only;
+		Subject *ptr;
 		for (int i = 0; i < size; i++) {
-			min = 0, different = 0;
-			for (int j = 1; j < sub[i].schedule_num; j++) {
-				if (resultSubject[sub[i].time_table[j].day][sub[i].time_table[j].start_time].student_num != resultSubject[sub[i].time_table[min].day][sub[i].time_table[min].start_time].student_num)
-					different = 1;
-				if (resultSubject[sub[i].time_table[j].day][sub[i].time_table[j].start_time].student_num > resultSubject[sub[i].time_table[min].day][sub[i].time_table[min].start_time].student_num)
-					min = j;
+			max = 0;
+			only = 1;
+			for (j = 0; j < sub[i].schedule_num; j++) {
+				ptr = &resultSubject[sub[i].time_table[j].day][sub[i].time_table[j].start_time];
+				while (ptr != NULL && ptr->subject_name != "") {
+					if (ptr->subject_name == sub[i].subject_name)
+						break;
+					ptr = ptr->next;
+				}
+				if (ptr != NULL)
+					break;
 			}
-			if (different == 0) {
-				min = minExamDay(sub[i].time_table, this->resultSubject, &sub[i]);
+
+			max = j, different = 0, ++j;
+			for (j ; j < sub[i].schedule_num; j++) {
+				ptr = &resultSubject[sub[i].time_table[j].day][sub[i].time_table[j].start_time];
+				while (ptr != NULL && ptr->subject_name != "") {
+					if (ptr->subject_name == sub[i].subject_name) {
+						only = 0;
+						break;
+					}
+					ptr = ptr->next;
+				}
+				if (ptr != NULL && ptr->subject_name != "") {
+					if (ptr->student_num != resultSubject[sub[i].time_table[max].day][sub[i].time_table[max].start_time].student_num)
+						different = 1;
+					if (ptr->student_num > resultSubject[sub[i].time_table[max].day][sub[i].time_table[max].start_time].student_num)
+						max = j;
+				}
+			}
+			if (only == 1) {
+				continue;
+			}
+			if (different == 0) { // 가중치가 동일하다면 요일 중 가중치가 가장 적은 요일을 선택
+				max = minExamDay(sub[i].time_table, this->resultSubject, &sub[i]);
 			}
 			for (int j = 0; j < sub[i].schedule_num; j++) {
-				if (j != min)
-					resultSubject[sub[i].time_table[j].day][sub[i].time_table[j].start_time] = { "", NULL, 0, 0, NULL };
+				if (j != max) {
+					ptr = &resultSubject[sub[i].time_table[j].day][sub[i].time_table[j].start_time];
+					while (ptr != NULL && ptr->subject_name != "") {
+						if(ptr->subject_name == sub[i].subject_name)
+							*ptr = { "", NULL, 0, 0, NULL };
+						ptr = ptr->next;
+					}
+				}
 			}
 		}
 	}
@@ -334,8 +368,8 @@ public:
 			printExamResultSchedule();
 			delete this->subject;
 			this->subject = new Subject*[5]; // 5개의 요일 배열 생성(월, 화, 수, 목, 금)
-			for (int i = 0; i < 5; i++) {
-				this->subject[i] = new Subject[max_time]; // 각각의 요일에 1~15.5교시까지의 배열 생성(시간이 겹치는 강의는 연결 리스트로 연결)
+			for (int j = 0; j < 5; j++) {
+				this->subject[j] = new Subject[max_time]; // 각각의 요일에 1~15.5교시까지의 배열 생성(시간이 겹치는 강의는 연결 리스트로 연결)
 			}
 		}
 		for (int i = 0; i < student_num; i++) {
