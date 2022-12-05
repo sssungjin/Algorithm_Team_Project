@@ -276,9 +276,9 @@ public:
 				if (resultExamSchedule[i][j].subject_name != "") {
 					ptr = &resultExamSchedule[i][j];
 					cout << ptr->subject_name << " " << ptr->student_num << " ";
-					while (ptr->next != NULL) {
+					while (ptr->next != NULL && ptr->next->subject_name != "") {
 						ptr = ptr->next;
-						cout << "->" << ptr->subject_name << " " << ptr->student_num << " ";
+						cout << "-> " << ptr->subject_name << " " << ptr->student_num << " ";
 					}
 				}
 			}
@@ -334,12 +334,17 @@ public:
 					prev = ptr;
 					while (ptr != NULL && ptr->subject_name != "") {
 						if (ptr->subject_name == sub[i].subject_name) {
-							if (ptr->next == NULL)
+							if (ptr->next == NULL) // 같은 강의의 다음 연결리스트가 없다면 바로 삭제
 								*ptr = { "", NULL, 0, 0, NULL };
-							else {
-								prev->next = prev->next->next;
-								*ptr = { "", NULL, 0, 0, NULL };
-								break;
+							else { // 다음 연결리스트가 존재한다면 이전 연결리스트와 연결
+								if (ptr == &resultExamSchedule[sub[i].time_table[j].day][sub[i].time_table[j].start_time]) {
+									*ptr = *ptr->next;
+								}
+								else {
+									prev->next = prev->next->next;
+									*ptr = { "", NULL, 0, 0, NULL };
+									break;
+								}
 							}
 						}
 						prev = ptr;
