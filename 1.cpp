@@ -10,8 +10,9 @@ using namespace std;
 #define max_subject 24 // 수강 가능한 강의의 수
 #define max_time 30 // 강의 교시 수(n = (1 + 0.5*n)교시) (n >= 0인 30보다 작은 정수)
 #define max_day 5
-#define max_scheduleNum 3 // 가능한 강의 시간 분할 수(일반물리학및실험1의 경우 강의가 3개의 시간으로 분할됨)
+#define max_scheduleNum 3 // 가능한 강의 시간 분할 수(일주일에 강의 하는 횟수)
 
+int cmp_n = 0;
 enum Day { mon, tue, wed, thu, fri }; // 요일에 따른 수를 열거한 열거형
 typedef struct schedule {
     enum Day day; // 요일
@@ -80,7 +81,7 @@ public:
 
         if (ptr != NULL)
         {
-            if (ptr->subject_name == subject_name)
+            if (++cmp_n && ptr->subject_name == subject_name)
             {
                 return ptr;
             }
@@ -89,7 +90,7 @@ public:
                 ptr = ptr->next;
                 while (ptr != NULL)
                 {
-                    if (ptr->subject_name == subject_name)
+                    if (++cmp_n && ptr->subject_name == subject_name)
                         return ptr;
                     ptr = ptr->next;
                 }
@@ -266,7 +267,7 @@ public:
         i = l; j = mid + 1; k = l;
         sorted = new Subject[r + 1]; 
         while (i <= mid && j <= r) {
-            if (a[i].student_num > a[j].student_num) {  //내림차순 정렬
+            if (++cmp_n && a[i].student_num > a[j].student_num) {  //내림차순 정렬
                 sorted[k++] = a[i++];
             }
             else {
@@ -300,7 +301,7 @@ public:
         i = l; j = mid + 1; k = l;
         sorted = new Subject[r + 1];
         while (i <= mid && j <= r) {
-            if (a[i].time_table[0].start_time <= a[j].time_table[0].start_time) {  //오름차순정렬
+            if (++cmp_n && a[i].time_table[0].start_time <= a[j].time_table[0].start_time) {  //오름차순정렬
                 sorted[k++] = a[i++];
             }
             else {
@@ -334,7 +335,7 @@ public:
         i = l; j = mid + 1; k = l;
         sorted = new Subject[r + 1];
         while (i <= mid && j <= r) {    
-            if (a[i].time_table[0].day <= a[j].time_table[0].day) {  //오름차순정렬, (개선사항: 요일 같을 때 다음 요일 비교)
+            if (++cmp_n && a[i].time_table[0].day <= a[j].time_table[0].day) {  //오름차순정렬, (개선사항: 요일 같을 때 다음 요일 비교)
                 sorted[k++] = a[i++];
             }
             else {
@@ -368,7 +369,7 @@ public:
         i = l; j = mid + 1; k = l;
         sorted = new Subject[r + 1];
         while (i <= mid && j <= r) {
-            if (a[i].schedule_num <= a[j].schedule_num) {  //오름차순정렬
+            if (++cmp_n && a[i].schedule_num <= a[j].schedule_num) {  //오름차순정렬
                 sorted[k++] = a[i++];
             }
             else {
@@ -412,48 +413,79 @@ public:
         }
     }
 
-    int minExamDay(Schedule* sc, Subject** sb, Subject* sub) {
-        int i, j, min = 0, minSum = 0, sum = 0; // min은 시험이 가장 덜 배정되어있는 요일(1번째 요일을 기본적인 최소로 설정), minSum은 min요일에 해당하는 가중치
-        int scheduleNum = sub->schedule_num;
-        int userStartTime, userEndTime;
-        Subject* ptr; // 요일에 배정된 시험을 가리킬 포인터
-        userStartTime = sub->time_table[0].start_time, userEndTime = sub->time_table[0].end_time;
-        for (i = 0; i < max_time; i++) { // 1교시부터 15.5교시까지 모든 시험들의 가중치를 검토
-            if (sb[sc[0].day][i].subject_name != "") { // 해당 교시에 시험이 배정되어있다면
-                ptr = &sb[sc[0].day][i]; // 연결리스트 전체 확인
-                while (ptr != NULL) {
-                    if ((ptr->subject_name.substr(0, 7) != sub->subject_name.substr(0, 7)) &&
-                        !((ptr->time_table->start_time <= userStartTime && ptr->time_table->end_time > userStartTime) || (
-                            ptr->time_table->start_time < userEndTime && ptr->time_table->end_time >= userEndTime))) // 만약에 같은 교과목의 분반이 아니거나 시간대가 겹치는 강의가 아니라면 
-                                                                                                                     // 같은 학생이 들을 수 없는 과목이므로 가중치 고려할 필요 없음
-                        minSum += ptr->student_num;
-                    ptr = ptr->next; 
-                }
-            }
-        }
+    //int minExamDay(Schedule* sc, Subject** sb, Subject* sub) {
+    //    int i, j, min = 0, minSum = 0, sum = 0; // min은 시험이 가장 덜 배정되어있는 요일(1번째 요일을 기본적인 최소로 설정), minSum은 min요일에 해당하는 가중치
+    //    int scheduleNum = sub->schedule_num;
+    //    int userStartTime, userEndTime;
+    //    Subject* ptr; // 요일에 배정된 시험을 가리킬 포인터
+    //    userStartTime = sub->time_table[0].start_time, userEndTime = sub->time_table[0].end_time;
+    //    for (i = 0; i < max_time; i++) { // 1교시부터 15.5교시까지 모든 시험들의 가중치를 검토
+    //        if (sb[sc[0].day][i].subject_name != "") { // 해당 교시에 시험이 배정되어있다면
+    //            ptr = &sb[sc[0].day][i]; // 연결리스트 전체 확인
+    //            while (ptr != NULL) {
+    //                if ((ptr->subject_name.substr(0, 7) != sub->subject_name.substr(0, 7)) &&
+    //                    !((ptr->time_table->start_time <= userStartTime && ptr->time_table->end_time > userStartTime) || (
+    //                        ptr->time_table->start_time < userEndTime && ptr->time_table->end_time >= userEndTime))) // 만약에 같은 교과목의 분반이 아니거나 시간대가 겹치는 강의가 아니라면 
+    //                                                                                                                 // 같은 학생이 들을 수 없는 과목이므로 가중치 고려할 필요 없음
+    //                    minSum += ptr->student_num;
+    //                ptr = ptr->next; 
+    //            }
+    //        }
+    //    }
 
-        for (i = 1; i < scheduleNum; i++) { // 나머지 요일들을 검토하여 minSum보다 작은 요일이 발견될경우 해당 요일을 min으로 할당
-            userStartTime = sub->time_table[i].start_time, userEndTime = sub->time_table[i].end_time;
+    //    for (i = 1; i < scheduleNum; i++) { // 나머지 요일들을 검토하여 minSum보다 작은 요일이 발견될경우 해당 요일을 min으로 할당
+    //        userStartTime = sub->time_table[i].start_time, userEndTime = sub->time_table[i].end_time;
+    //        for (j = 0; j < max_time; j++) {
+    //            if (sb[sc[i].day][j].subject_name != "") {
+    //                ptr = &sb[sc[i].day][j];
+    //                while (ptr != NULL) {
+    //                    if (ptr->subject_name.substr(0, 7) != sub->subject_name.substr(0, 7) &&
+    //                        !((ptr->time_table->start_time <= userStartTime && ptr->time_table->end_time > userStartTime) || (
+    //                            ptr->time_table->start_time < userEndTime && ptr->time_table->end_time >= userEndTime))) // 만약에 같은 교과목의 분반이 아니거나 시간대가 겹치는 강의가 아니라면
+    //                        sum += ptr->student_num;
+    //                    ptr = ptr->next;
+    //                }
+    //            }
+    //        }
+    //        if (minSum > sum) {
+    //            minSum = sum;
+    //            min = i;
+    //        }
+    //        sum = 0;
+    //    }
+
+    //    return min;
+    //}
+
+    int minExamDay(Schedule* subjectSchedule, Subject** examTable, Subject* userSubject) { // 강의 요일 중 가장 시험이 덜 배정되어있는(가중치가 가장 작은) 요일에 해당하는 time_table 배열의 인덱스를 반환하는 함수
+        // sc는 특정 강의의 시간표 배열, sb는 전체시간표에 해당하는 2차원 배열, userSubject는 특정 강의
+        int i, j, min = 0, minSum = INT_MAX, sum = 0; // min은 시험이 가장 덜 배정되어있는 요일(0번째 시간표의 요일을 기본적인 최소로 설정), minSum은 min요일에 해당하는 가중치, sum은 minSum과 비교할 다음 요일의 가중치
+        int scheduleNum = userSubject->schedule_num; // 강의시간표의 분할 개수를 저장
+        int startTime, endTime; // 강의의 시작 시간과 종료 시간을 저장할 변수
+        Subject* ptr; // 요일에 특정 교시를 가리킬 포인터
+
+        for (i = 0; i < scheduleNum; i++) { // 강의 시간표의 요일들을 검토하여 minSum보다 작은 요일이 발견될경우 해당 시간표를 min으로 할당
+            startTime = userSubject->time_table[i].start_time, endTime = userSubject->time_table[i].end_time; // 시작교시와 종료교시를 i번째 시간표의 시작교시와 종료교시로 초기화
             for (j = 0; j < max_time; j++) {
-                if (sb[sc[i].day][j].subject_name != "") {
-                    ptr = &sb[sc[i].day][j];
-                    while (ptr != NULL) {
-                        if (ptr->subject_name.substr(0, 7) != sub->subject_name.substr(0, 7) &&
-                            !((ptr->time_table->start_time <= userStartTime && ptr->time_table->end_time > userStartTime) || (
-                                ptr->time_table->start_time < userEndTime && ptr->time_table->end_time >= userEndTime))) // 만약에 같은 교과목의 분반이 아니거나 시간대가 겹치는 강의가 아니라면
+                ptr = &examTable[subjectSchedule[i].day][j]; // i번째 시간표 요일의 1교시부터 15.5교시까지 시험이 배정되어있는지 확인
+                if (ptr->subject_name != "") { // 해당 요일의 교시에 시험이 배정되어있다면
+                    while (ptr != NULL) { // 시험 연결리스트의 끝까지 확인
+                        if (ptr->subject_name.substr(0, 7) != userSubject->subject_name.substr(0, 7) && ++cmp_n && // 같은 강의의 분반이 아니거나 시험 시간이 겹치지 않는다면 가중치 증가
+                            !((ptr->time_table->start_time <= startTime && ptr->time_table->end_time > startTime) || (
+                                ptr->time_table->start_time < endTime && ptr->time_table->end_time >= endTime)))
                             sum += ptr->student_num;
                         ptr = ptr->next;
                     }
                 }
             }
-            if (minSum > sum) {
+            if (minSum > sum) { // minSum을 INT_MAX로 초기화함으로써 0번째 시간표는 반드시 가중치합이 최소인 시간표로 설정, 그 다음 시간표부터는 0번째 시간표와 비교
                 minSum = sum;
                 min = i;
             }
             sum = 0;
         }
 
-        return min;
+        return min; // 시험 최소 배정 요일에 해당하는 Schedule 배열의 인덱스 반환
     }
     void allocateExam(Subject *sub) { 
         Schedule* sc;
@@ -482,7 +514,7 @@ public:
     void printExamResultSchedule() {
         Subject* ptr;
         int num = 0;    //요일별 사람 수 저장할 변수
-        for (int i = 0; i < 5; i++) {
+        for (int i = 0; i < max_day; i++) {
             cout << i << " : ";
             for (int j = 0; j < max_time; j++) {
                 if (subject[i][j].subject_name != "") {
@@ -602,5 +634,5 @@ int main()
     q.allocateExam(sorted);
     q.printExamResultSchedule();
 
-
+    cout << "비교횟수 : " << cmp_n << endl;
 }
