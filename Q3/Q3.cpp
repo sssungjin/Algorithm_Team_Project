@@ -112,7 +112,7 @@ int total_sub = 0;  //전체 과목 수
 subject_table st(10009);
 Subject* sorted;
 void setData() {
-    ifstream fp("C:\\Users\\nicol\\Desktop\\알골팀플\\Algorithm_Team_Project\\Q3\\totalData.txt");
+    ifstream fp("C:\\Users\\nicol\\Desktop\\algorithm_project\\Algorithm_Team_Project\\Q3\\totalData.txt");
     if (!fp.is_open()) { cout << "not open" << endl; return; }
     string fpstr; // 파일로부터 읽어올 한 문장을 저장할 변수
     string subject_code, time[3]; // 학수번호, 부분별로 나눠진 시간표(한 과목당 최대 3번으로 나눠져 수업 진행됨)
