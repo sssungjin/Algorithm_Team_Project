@@ -333,8 +333,8 @@ public:
         int i, j, k, n;
         i = l; j = mid + 1; k = l;
         sorted = new Subject[r + 1];
-        while (i <= mid && j <= r) {
-            if (a[i].time_table[0].day <= a[j].time_table[0].day) {  //오름차순정렬
+        while (i <= mid && j <= r) {    
+            if (a[i].time_table[0].day <= a[j].time_table[0].day) {  //오름차순정렬, (개선사항: 요일 같을 때 다음 요일 비교)
                 sorted[k++] = a[i++];
             }
             else {
@@ -422,12 +422,12 @@ public:
             if (sb[sc[0].day][i].subject_name != "") { // 해당 교시에 시험이 배정되어있다면
                 ptr = &sb[sc[0].day][i]; // 연결리스트 전체 확인
                 while (ptr != NULL) {
-                   /* if ((ptr->subject_name.substr(0, 7) != sub->subject_name.substr(0, 7)) &&
+                    if ((ptr->subject_name.substr(0, 7) != sub->subject_name.substr(0, 7)) &&
                         !((ptr->time_table->start_time <= userStartTime && ptr->time_table->end_time > userStartTime) || (
-                            ptr->time_table->start_time < userEndTime && ptr->time_table->end_time >= userEndTime)))*/ // 만약에 같은 교과목의 분반이 아니거나 시간대가 겹치는 강의가 아니라면
-                    if ((ptr->subject_name.substr(0, 7) != sub->subject_name.substr(0, 7)) )
+                            ptr->time_table->start_time < userEndTime && ptr->time_table->end_time >= userEndTime))) // 만약에 같은 교과목의 분반이 아니거나 시간대가 겹치는 강의가 아니라면 
+                                                                                                                     // 같은 학생이 들을 수 없는 과목이므로 가중치 고려할 필요 없음
                         minSum += ptr->student_num;
-                    ptr = ptr->next; // 시간이 중복되는 시험이 존재하는지 아래 조건문을 통해 확인
+                    ptr = ptr->next; 
                 }
             }
         }
@@ -438,10 +438,9 @@ public:
                 if (sb[sc[i].day][j].subject_name != "") {
                     ptr = &sb[sc[i].day][j];
                     while (ptr != NULL) {
-                       /* if (ptr->subject_name.substr(0, 7) != sub->subject_name.substr(0, 7) &&
+                        if (ptr->subject_name.substr(0, 7) != sub->subject_name.substr(0, 7) &&
                             !((ptr->time_table->start_time <= userStartTime && ptr->time_table->end_time > userStartTime) || (
-                                ptr->time_table->start_time < userEndTime && ptr->time_table->end_time >= userEndTime)))*/ // 만약에 같은 교과목의 분반이 아니거나 시간대가 겹치는 강의가 아니라면
-                        if (ptr->subject_name.substr(0, 7) != sub->subject_name.substr(0, 7))
+                                ptr->time_table->start_time < userEndTime && ptr->time_table->end_time >= userEndTime))) // 만약에 같은 교과목의 분반이 아니거나 시간대가 겹치는 강의가 아니라면
                             sum += ptr->student_num;
                         ptr = ptr->next;
                     }
@@ -498,7 +497,7 @@ public:
                     }
                 }
             }
-            cout << "요일 사람 수 : " << num << endl;
+            cout << "요일별 가중치 수 : " << num << endl;
             num = 0;
             cout << endl;
         }
